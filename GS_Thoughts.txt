@@ -1,0 +1,5 @@
+1. Normalize Volume
+
+2. Cumulative sum of volume * direction
+
+3. Change over 1 time period
