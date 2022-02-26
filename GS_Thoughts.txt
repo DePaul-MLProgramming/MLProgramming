@@ -3,3 +3,8 @@
 2. Cumulative sum of volume * direction
 
 3. Change over 1 time period
+
+4. Create a summary table for each change n period.
+To include, mean, mode, max, min, etc
+
+Can also do box plot of the change periods
