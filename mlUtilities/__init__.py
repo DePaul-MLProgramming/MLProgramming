@@ -1,4 +1,4 @@
-from .Data import change_n
+from .data_utils import change_n
 
 
 # files aka modules to import with mlUtilities
