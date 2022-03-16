@@ -3,6 +3,9 @@ from mlUtilities import Data
 
 print('there is something wrong')
 
+def hello_world():
+    print('hello_world')
+
 def main():
     print('in main')
     data = pd.read_csv('Data/5m_SPY')
