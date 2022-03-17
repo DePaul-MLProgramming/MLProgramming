@@ -8,8 +8,34 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(ROOT_DIR, 'Data')
 
 
-def get_data():
+def get_data(file_name):
     pass
+
+
+def tranform_data(data_df, period='daily'):
+    '''Expects to receive a pandas dataframe of the base equities data.
+    The base equities data should only contain the following columns:
+    Open, High, Low, Close, Volume, Adj Close
+    Args:
+        period(str): should be either "daily" or "intraday"
+    '''
+    if period == 'intraday':
+        data_df['Datetime'] = pd.to_datetime(data_df['Datetime'])
+    else:
+        # Daily Dataframe
+        pass
+
+    
+def intraday_transform(data_df):
+    data_df['Volume'] = min_max_normalize(data_df['Volume'], 0, 5)
+    data_df = vol_tide(data_df)
+    return data_df
+
+
+def daily_transform(data_df):
+    pass
+    
+    
 
 def change_n(data, timeperiod=None, **kwargs):
     '''Calculates change over n period'''
@@ -71,7 +97,7 @@ def directional_volume(df):
     '''Take a daily dataframe and return the dataframe with additional columns.'''
     open_close_change = (df['Close'] - df['Open']) / df['Open']
     open_close_direction = open_close_change / abs(open_close_change)
-    df['Directional_Volume'] = df['Volume'] * open_close_direction
+    df['Directional_Vol'] = df['Volume'] * open_close_direction
     return df
 
 
@@ -102,3 +128,21 @@ def mean_normalization(data, column=None):
         data[column] = data[column] - data[column].mean()
     return data
     
+    
+def create_class_targets(df, levels):
+    '''Assigsn a class to the target variable.'''
+    target_class = pd.DataFrame()
+    for col, level in zip(df, levels):
+        print(col, level)
+        class_values = []
+        for val in df[col]:
+            if val > level:
+                class_values.append('buy')
+            elif val < -level:
+                class_values.append('sell')
+            elif np.isnan(val):
+                class_values.append(val)
+            else:
+                class_values.append('flat')
+        target_class[col] = class_values
+    return target_class
