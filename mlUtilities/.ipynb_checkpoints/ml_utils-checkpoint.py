@@ -8,45 +8,45 @@ from sklearn.metrics import confusion_matrix, accuracy_score
 
 def first_func():
     print('Hola Mundo')
-    
+
+
 def run_NaiveBayes(X, Y, test=False, val=False):
-    '''Run Naive Bayes.  
-    Args:
-        X: dataframe
-        Y: array or Series
-        test: If true, will return values for the test data results
-        val: if True, will return valures for the validation data results
-    Returns: Dictionary with tuples as the values.
-    '''
-    class_labels = ['Buy', 'Flat', 'Sell']
-    x_train, x_val, y_train, y_val = train_test_split(X, Y, test_size=0.2)
-    x_train, x_test, y_train, y_testv = train_test_split(x_train, y_train, test_size=0.3)
+    x_train, x_val , y_train, y_val = train_test_split(X, Y, 
+                                                       test_size=0.1, 
+                                                       random_state=0)
+    x_train, x_test , y_train, y_test = train_test_split(x_train, y_train, 
+                                                         test_size=0.3, 
+                                                         random_state=0)
     nB = GaussianNB().fit(x_train, y_train)
     training_results = nB.predict(x_train)
-    training_cm = confusion_matrix(y_train, training_results, labels=class_labels)
-    test_accuracy = accuracy_score(y_test, test_results)
+    training_cm = confusion_matrix(y_train, 
+                                   training_results, 
+                                   labels=['Buy', 'Flat', 'Sell'])
+    training_accuracy = accuracy_score(y_train, training_results)
     if not test and not val:
         return (training_cm, training_accuracy)
     if test:
         test_results = nB.predict(x_test)
-        test_cm = confusion_matrix(y_test, test_results, labels=class_labels)
+        test_cm = confusion_matrix(y_test, 
+                                   test_results, 
+                                   labels=['Buy', 'Flat', 'Sell'])
         test_accuracy = accuracy_score(y_test, test_results)
         if not val:
-            return {'Training_Results': (training_cm, training_accuracy),
-                    'Test_Results': (test_cm, test_accuracy)
-                   }
+            return {'Training_Results': (training_cm, training_accuracy), 
+                    'Test_Results': (test_cm, test_accuracy)}
     if val:
         val_results = nB.predict(x_val)
-        val_cm = confusion_matrix(y_val, val_results, labels=class_labels)
+        val_cm = confusion_matrix(y_val, 
+                                  val_results, 
+                                  labels=['Buy', 'Flat', 'Sell'])
         val_accuracy = accuracy_score(y_val, val_results)
         if not test:
             return {'Training_Results': (training_cm, training_accuracy),
-                    'Val_Results': (val_cm, val_accuracy)
-                   }
+                    'Val_Results': (val_cm, val_accuracy)}
         return {'Training_Results': (training_cm, training_accuracy),
                 'Test_Results': (test_cm, test_accuracy),
-                'Val_Results': (val_cm, val_accuracy)
-               }
+                'Val_Results': (val_cm, val_accuracy)}
+
     
     
 def print_results(results_dict, train=True, test=False, val=False, all_metrics=False):
@@ -105,6 +105,9 @@ def performance_metrics(conf_matrix):
                              (results['precision']+results['sensitivity'])), 3)
     results['balanced_accuracy'] = round((results['sensitivity'] + results['specificity'])/2, 3)
     return results
+
+
+
 
                                        
 

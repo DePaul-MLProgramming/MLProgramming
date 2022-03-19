@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import pandas as pd
+import numpy as np
 import os, sys
 
 
@@ -12,7 +13,7 @@ def get_data(file_name):
     pass
 
 
-def tranform_data(data_df, period='daily'):
+def transform_data(data_df, period='daily', lower_limit=-0.005, upper_limit=0.005, **kwargs):
     '''Expects to receive a pandas dataframe of the base equities data.
     The base equities data should only contain the following columns:
     Open, High, Low, Close, Volume, Adj Close
@@ -20,25 +21,65 @@ def tranform_data(data_df, period='daily'):
         period(str): should be either "daily" or "intraday"
     '''
     if period == 'intraday':
-        data_df['Datetime'] = pd.to_datetime(data_df['Datetime'])
+        try:
+            data_df['Datetime'] = pd.to_datetime(data_df['Datetime'])
+        except:
+            data_df['Datetime'] = pd.to_datetime(data_df['Datetime'], utc=True)
+        data_df = intraday_transform(data_df)
+        return data_df
+    elif period == 'daily':
+        data_df['Date'] = pd.to_datetime(data_df['Date'])
+        data_df = daily_transform(data_df, **kwargs)
+        data_df.reset_index(drop=True, inplace=True)
+        if 'create_targets' in kwargs.keys():
+            data_df['Target'] = create_targets(data_df['Change_5'], 
+                                               upper_target=upper_limit, 
+                                               lower_target=lower_limit)
+            data_df['Target'] = data_df['Target'].shift(periods=-1)
+        return data_df
     else:
-        # Daily Dataframe
-        pass
+        raise Error ('period argument was not passed to transform_data()')
 
     
 def intraday_transform(data_df):
+    '''Used to create the final intraday dataframe dataset.'''
     data_df['Volume'] = min_max_normalize(data_df['Volume'], 0, 5)
     data_df = vol_tide(data_df)
     return data_df
 
 
-def daily_transform(data_df):
-    pass
+def daily_transform(data_df, **kwargs):
+    '''Adds 'Directional_Vol' and 'Vol_Adv_Dec' columns to the dataframe.
+        Returns the new dataframe'''
+    data_df = directional_volume(data_df)
+    data_df['Vol_Adv_Dec'] = data_df['Directional_Vol'].cumsum()
+    data_df = change_n(data_df, timeperiod=[1, 3, 5, 10])
+    data_df = transform_tide(data_df, **kwargs)
+    return data_df
+    
+
+def transform_tide(data_df, **kwargs):
+    '''Will take a daily dataframe and the EOD Tide Values as inputs.
+    Returns a dataframe that includes the columns derived from eod_vol_tide.
+    Which includes a re-index to the shorter 60 days of data so that the dataframe and eod tide
+    values merge'''
+    if 'eod_tide' in kwargs.keys():
+        if not isinstance(kwargs['eod_tide'], pd.Series):
+            raise Error('eod_tide value must be of type pd.Series')
+        eod_vol_tide = kwargs['eod_tide']
+        start_date = eod_vol_tide.index[0]
+        eod_vol_tide = eod_vol_tide.values
+        data_df = data_df.loc[data_df.Date >= str(start_date)]
+        data_df['EOD_Vol_Tide'] = (kwargs['eod_tide']).values
+        data_df['Tide_Adv_Dec'] = data_df.EOD_Vol_Tide.cumsum()
+        data_df['Vol_Diff'] = data_df.Vol_Adv_Dec - data_df.EOD_Vol_Tide
+    return data_df
     
     
 
 def change_n(data, timeperiod=None, **kwargs):
     '''Calculates change over n period'''
+    # Checks if timeperiod is a list or a number
     if isinstance(timeperiod, int):
         period = str(timeperiod)
         col_name = f'change_{period}'
@@ -46,10 +87,8 @@ def change_n(data, timeperiod=None, **kwargs):
         return data
     if isinstance(timeperiod, list):
         for period in timeperiod:
-            if isinstance(period, str):
-                period = int(period)
-            period = str(timeperiod)
-            col_name = f'Change_{period}'
+            period_str = str(period)
+            col_name = f'Change_{period_str}'
             data[col_name] = data['Close'].pct_change(periods=period)
         return data
                           
@@ -114,6 +153,8 @@ def min_max_normalize(data, new_min, new_max):
         new_max(int)
     Returns: series/array containing normalized data
     '''
+    if not isinstance(data, pd.Series):
+        raise ValueError('Data passed to min_max_normalize() should be pd.Series object')
     data_min = min(data)
     data_max = max(data)
     numerator = data - data_min
@@ -146,3 +187,24 @@ def create_class_targets(df, levels):
                 class_values.append('flat')
         target_class[col] = class_values
     return target_class
+
+
+############### TARGET FUNCTIONS ############### 
+
+def create_targets(array, lower_target=-0.03, upper_target=0.03):
+    '''Takes in a pandas Series and returns the shifted class labels for each row of data'''
+    if not isinstance(array, pd.Series):
+        raise ValueError('pd.Series must be passed into create_targets')
+    class_list = []
+    for index, value in array.items():
+        if value >= upper_target:
+            class_list.append('Buy')
+        elif value <= lower_target:
+            class_list.append('Sell')
+        # This else also catches null values
+        else:
+            class_list.append('Flat')
+    return pd.DataFrame(class_list)
+        
+        
+    
