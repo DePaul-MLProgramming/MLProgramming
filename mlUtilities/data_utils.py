@@ -25,6 +25,9 @@ def transform_data(data_df, period='daily', lower_limit=-0.005, upper_limit=0.00
             data_df['Datetime'] = pd.to_datetime(data_df['Datetime'])
         except:
             data_df['Datetime'] = pd.to_datetime(data_df['Datetime'], utc=True)
+        # Add catch for datetime not coming out as datetime
+        if not pd.api.types.is_datetime64_ns_dtype(data_df['Datetime']):
+            data_df['Datetime'] = pd.to_datetime(data_df['Datetime'], utc=True)
         data_df = intraday_transform(data_df)
         return data_df
     elif period == 'daily':
@@ -76,7 +79,20 @@ def transform_tide(data_df, **kwargs):
     return data_df
     
     
+def get_test_data(intra_data, daily_data, columns):
+    intra_data = transform_data(intra_data, period='intraday', columns=columns)
+    eod_value = intra_data.groupby([intra_data.Datetime.dt.date])['Dir_to_Vol'].sum()
+    daily_data['Volume'] = min_max_normalize(daily_data['Volume'], 0, 5)
+    daily_data = transform_data(daily_data, eod_tide=eod_value, create_targets=True)
+    short_data = transform_tide(daily_data, eod_tide=eod_vol_tide)
+    short_data.dropna(inplace=True)
+    target = short_d_data.pop('Target')
+    short_data.set_index('Date', inplace=True)
+    short_data = short_data[columns]
+    return short_data
+                            
 
+    
 def change_n(data, timeperiod=None, **kwargs):
     '''Calculates change over n period'''
     # Checks if timeperiod is a list or a number
